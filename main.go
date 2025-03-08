@@ -8,6 +8,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+
+	"task-service/config" // Update this import path to match your project structure
 )
 
 type Tasks struct {
@@ -19,11 +21,13 @@ type Tasks struct {
 }
 
 func main() {
-	// Crea una nuova sessione AWS per DynamoDB Local
+	// Carica il file di configurazione
+	config := config.LoadConfig()
+
+	// Crea una nuova sessione AWS per DynamoDB
 	sess, err := session.NewSession(&aws.Config{
-		// Impostiamo l'endpoint per DynamoDB Local
-		Endpoint: aws.String("http://localhost:8000"), // Imposta l'endpoint di DynamoDB Local
-		Region:   aws.String("us-west-1"),             // Puoi usare qualsiasi regione, non ha importanza per DynamoDB Local
+		Endpoint: aws.String(config.AWS.Endpoint),
+		Region:   aws.String(config.AWS.Region),
 	})
 	if err != nil {
 		log.Fatalf("Errore nella creazione della sessione AWS: %v", err)
@@ -32,7 +36,7 @@ func main() {
 	// Crea un client DynamoDB
 	svc := dynamodb.New(sess)
 
-	// Inserisci un task in DynamoDB Local
+	// Inserisci un task in DynamoDB
 	task := Tasks{
 		TaskID:       "task_001",
 		Description:  "Complete project documentation",
@@ -56,5 +60,5 @@ func main() {
 		log.Fatalf("Errore nell'inserimento del task in DynamoDB: %v", err)
 	}
 
-	fmt.Println("Task inserito con successo in DynamoDB Local!")
+	fmt.Println("Task inserito con successo in DynamoDB!")
 }
