@@ -3,62 +3,47 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
+	"os"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/gorilla/mux"
 
-	"task-service/config" // Update this import path to match your project structure
+	"task-service/config"   // Update this import path to match your project structure
+	"task-service/handlers" // Import your handlers package
 )
 
-type Tasks struct {
-	TaskID       string `json:"task_id"`
-	Description  string `json:"description"`
-	StartingTime string `json:"starting_time"`
-	Duration     int    `json:"duration"`
-	Status       string `json:"status"`
-}
-
 func main() {
-	// Carica il file di configurazione
-	config := config.LoadConfig()
+	// Load configuration
+	cfg := config.LoadConfig()
 
-	// Crea una nuova sessione AWS per DynamoDB
+	// Initialize AWS session
 	sess, err := session.NewSession(&aws.Config{
-		Endpoint: aws.String(config.AWS.Endpoint),
-		Region:   aws.String(config.AWS.Region),
+		Endpoint: aws.String(cfg.AWS.Endpoint),
+		Region:   aws.String(cfg.AWS.Region),
 	})
 	if err != nil {
-		log.Fatalf("Errore nella creazione della sessione AWS: %v", err)
+		log.Fatalf("Failed to create AWS session: %v", err)
 	}
 
-	// Crea un client DynamoDB
-	svc := dynamodb.New(sess)
+	// Initialize DynamoDB client
+	db := dynamodb.New(sess)
 
-	// Inserisci un task in DynamoDB
-	task := Tasks{
-		TaskID:       "task_001",
-		Description:  "Complete project documentation",
-		StartingTime: "08:00",
-		Duration:     120,
-		Status:       "PENDING",
+	// Initialize router
+	router := mux.NewRouter()
+
+	// Register routes
+	router.HandleFunc("/add-task", handlers.CreateTaskHandler(db)).Methods("POST")
+	//router.HandleFunc("/tasks/{id}", handlers.GetTaskHandler(db)).Methods("GET")
+	// Add more routes as needed
+
+	// Start the server
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
 	}
-
-	// Converte la struttura in un formato compatibile con DynamoDB
-	av, err := dynamodbattribute.MarshalMap(task)
-	if err != nil {
-		log.Fatalf("Errore nella conversione della struttura in attributi DynamoDB: %v", err)
-	}
-
-	// Inserisci l'elemento nella tabella "Tasks"
-	_, err = svc.PutItem(&dynamodb.PutItemInput{
-		TableName: aws.String("Tasks"),
-		Item:      av,
-	})
-	if err != nil {
-		log.Fatalf("Errore nell'inserimento del task in DynamoDB: %v", err)
-	}
-
-	fmt.Println("Task inserito con successo in DynamoDB!")
+	fmt.Printf("Server is running on port %s\n", port)
+	log.Fatal(http.ListenAndServe(":"+port, router))
 }
