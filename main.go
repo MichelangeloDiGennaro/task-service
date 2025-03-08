@@ -1,35 +1,38 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/gorilla/mux"
-
 	"task-service/config"   // Update this import path to match your project structure
 	"task-service/handlers" // Import your handlers package
+
+	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/gorilla/mux"
 )
 
 func main() {
-	// Load configuration
-	cfg := config.LoadConfig()
 
-	// Initialize AWS session
-	sess, err := session.NewSession(&aws.Config{
-		Endpoint: aws.String(cfg.AWS.Endpoint),
-		Region:   aws.String(cfg.AWS.Region),
-	})
-	if err != nil {
-		log.Fatalf("Failed to create AWS session: %v", err)
+	// Define a command-line flag for the environment
+	env := flag.String("env", "local", "Environment to run the application in (local or prod)")
+	flag.Parse()
+
+	// Print the environment variable
+	fmt.Printf("Environment: %s\n", *env)
+
+	var db *dynamodb.DynamoDB
+	//env := os.Getenv("APP_ENV")
+
+	if *env == "local" {
+		fmt.Printf("local environment")
+
+		db = config.InitLocalAwsSession()
+	} else {
+		fmt.Printf("Running in prod environmen")
+		db = config.InitProdAwsSession()
 	}
-
-	// Initialize DynamoDB client
-	db := dynamodb.New(sess)
 
 	// Initialize router
 	router := mux.NewRouter()
