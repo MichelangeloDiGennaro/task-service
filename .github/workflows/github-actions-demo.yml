@@ -24,8 +24,8 @@ jobs:
       # Step 4: Deploy to AWS Lambda
       - name: Deploy to AWS Lambda
         run: |
-          zip -r function.zip .  # Package Lambda code into a zip file
-          aws lambda update-function-code --function-name my-lambda-function --zip-file fileb://function.zip
+          zip -r task-service.zip .  # Package Lambda code into a zip file
+          aws lambda update-function-code --function-name task-service --zip-file fileb://task-service.zip
           # Step 5: Notify if deployment fails
       - name: Notify on failure
         if: failure()  # This step will run only if previous steps fail
