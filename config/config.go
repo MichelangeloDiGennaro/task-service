@@ -52,7 +52,7 @@ func InitLocalAwsSession() *dynamodb.DynamoDB {
 	if err != nil {
 		log.Fatalf("Failed to create AWS session: %v", err)
 	}
-
+	log.Printf("AWS session created")
 	// Initialize DynamoDB client
 	return dynamodb.New(sess)
 }
