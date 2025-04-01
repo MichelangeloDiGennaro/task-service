@@ -3,4 +3,4 @@
 set -e
 
 # Execute the Go binary
-./main
+./main -env=prod
