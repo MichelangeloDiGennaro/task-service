@@ -58,11 +58,22 @@ func InitLocalAwsSession() *dynamodb.DynamoDB {
 }
 
 func InitProdAwsSession() *dynamodb.DynamoDB {
+    accessKey := os.Getenv("AWS_ACCESS_KEY_ID")
+    secretKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+    region := os.Getenv("AWS_REGION")
 
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
+    if accessKey == "" || secretKey == "" || region == "" {
+        log.Fatalf("AWS environment variables are not set")
+    }
 
-	// Initialize DynamoDB client
-	return dynamodb.New(sess)
+    // Initialize AWS session
+    sess, err := session.NewSession(&aws.Config{
+        Region: aws.String(region),
+    })
+    if err != nil {
+        log.Fatalf("Failed to create AWS session: %v", err)
+    }
+
+    log.Println("AWS session for production created successfully")
+    return dynamodb.New(sess)
 }
