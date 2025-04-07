@@ -13,6 +13,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
+var db *dynamodb.DynamoDB
+
 func main() {
 
 	// Define a command-line flag for the environment
@@ -22,17 +24,7 @@ func main() {
 	// Print the environment variable
 	fmt.Printf("Environment: %s\n", *env)
 
-	var db *dynamodb.DynamoDB
 	//env := os.Getenv("APP_ENV")
-
-	if *env == "local" {
-		fmt.Printf("local environment")
-
-		db = config.InitLocalAwsSession()
-	} else {
-		fmt.Printf("Running in prod environmen")
-		db = config.InitProdAwsSession()
-	}
 
 	// Initialize router
 	router := mux.NewRouter()
@@ -43,10 +35,32 @@ func main() {
 	// Add more routes as needed
 
 	// Start the server
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	if *env == "local" {
+		fmt.Printf("local environment")
+
+		db = config.InitLocalAwsSession()
+		port := os.Getenv("PORT")
+		if port == "" {
+			port = "8080"
+		}
+
+		fmt.Printf("Server is running on port %s\n", port)
+		log.Fatal(http.ListenAndServe(":"+port, router))
+
+	} else {
+		fmt.Printf("Running in prod environmen")
+		db = config.InitProdAwsSession()
+		// Start the Lambda handler
+		lambda.Start(lambdaHandler)
 	}
-	fmt.Printf("Server is running on port %s\n", port)
-	log.Fatal(http.ListenAndServe(":"+port, router))
+
+}
+
+func lambdaHandler(req events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
+	switch req.HTTPMethod {
+	case "POST":
+		return handlers.CreateTaskHandler(db)
+	default:
+		return handlers.UnhandledMethod()
+	}
 }
