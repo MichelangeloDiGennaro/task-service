@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"context"
+	"fmt"
 	"encoding/json"
-	"net/http"
-
+	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"task-service/config"
 )
 
 type Task struct {
@@ -17,34 +19,51 @@ type Task struct {
 	Status       string `json:"status"`
 }
 
-func CreateTaskHandler(db *dynamodb.DynamoDB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var task Task
-		err := json.NewDecoder(r.Body).Decode(&task)
-		if err != nil {
-			http.Error(w, "Invalid request payload", http.StatusBadRequest)
-			return
-		}
+func CreateTaskHandler(dctx context.Context, request events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 
-		// check if the Task struct is valid by converting it into a format that is compatible
-		// with the DynamoDB: ensuring that the data types and attribute names match those defined in the DynamoDB table.
-		av, err := dynamodbattribute.MarshalMap(task)
-		if err != nil {
-			http.Error(w, "Failed to marshal task", http.StatusInternalServerError)
-			return
-		}
+	var task Task
+	var db *dynamodb.DynamoDB
+	db = config.InitProdAwsSession()
+	err := json.Unmarshal([]byte(request.Body), &task)
 
-		_, err = db.PutItem(&dynamodb.PutItemInput{
-			TableName:           aws.String("Tasks"),
-			Item:                av,
-			ConditionExpression: aws.String("attribute_not_exists(task_id)"), // Ensure no duplicate task_id
-		})
-		if err != nil {
-			http.Error(w, "Failed to create task: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(task)
+	if err != nil {
+		return &events.APIGatewayProxyResponse{
+			StatusCode: 400,
+			Body:       "Invalid request payload",
+		}, nil
 	}
+
+	// check if the Task struct is valid by converting it into a format that is compatible
+	// with the DynamoDB: ensuring that the data types and attribute names match those defined in the DynamoDB table.
+	av, err := dynamodbattribute.MarshalMap(task)
+	if err != nil {
+		return &events.APIGatewayProxyResponse{
+			StatusCode: 500,
+			Body:       fmt.Sprintf(`Failed to marshal task`),
+			}, nil
+	}
+
+	_, err = db.PutItem(&dynamodb.PutItemInput{
+		TableName:           aws.String("Tasks"),
+		Item:                av,
+		ConditionExpression: aws.String("attribute_not_exists(task_id)"), // Ensure no duplicate task_id
+	})
+	if err != nil {
+		return &events.APIGatewayProxyResponse{
+			StatusCode: 500,
+			Body:       fmt.Sprintf(`Failed to create task`+err.Error()),
+			}, nil
+	}
+
+	return &events.APIGatewayProxyResponse{
+		StatusCode: 200,
+		Body:       fmt.Sprintf(`task created successfully`),
+		}, nil
+}
+
+func UnhandledMethod(dctx context.Context, request events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
+	return &events.APIGatewayProxyResponse{
+		StatusCode: 500,
+		Body:       fmt.Sprintf(`UnhandledMethod`),
+		}, nil
 }

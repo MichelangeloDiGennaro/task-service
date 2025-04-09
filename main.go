@@ -3,17 +3,15 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
-	"net/http"
-	"os"
-	"task-service/config"   // Update this import path to match your project structure
-	"task-service/handlers" // Import your handlers package
-
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/gorilla/mux"
+	//"log"
+	//"net/http"
+	//"os"
+	"context"
+	"task-service/handlers"
+	"github.com/aws/aws-lambda-go/lambda"
+	//"github.com/gorilla/mux"
+	"github.com/aws/aws-lambda-go/events"
 )
-
-var db *dynamodb.DynamoDB
 
 func main() {
 
@@ -26,30 +24,29 @@ func main() {
 
 	//env := os.Getenv("APP_ENV")
 
-	// Initialize router
-	router := mux.NewRouter()
 
-	// Register routes
-	router.HandleFunc("/add-task", handlers.CreateTaskHandler(db)).Methods("POST")
 	//router.HandleFunc("/tasks/{id}", handlers.GetTaskHandler(db)).Methods("GET")
 	// Add more routes as needed
 
 	// Start the server
 	if *env == "local" {
-		fmt.Printf("local environment")
+		//fmt.Printf("local environment")
+		// Initialize router
+		//router := mux.NewRouter()
 
-		db = config.InitLocalAwsSession()
-		port := os.Getenv("PORT")
-		if port == "" {
-			port = "8080"
-		}
+		// Register routes
+		//router.HandleFunc("/add-task", handlers.CreateTaskHandler).Methods("POST")
+		//db = config.InitLocalAwsSession()
+		//port := os.Getenv("PORT")
+		//if port == "" {
+			//port = "8080"
+		//}
 
-		fmt.Printf("Server is running on port %s\n", port)
-		log.Fatal(http.ListenAndServe(":"+port, router))
+		//fmt.Printf("Server is running on port %s\n", port)
+		//log.Fatal(http.ListenAndServe(":"+port, router))
 
 	} else {
 		fmt.Printf("Running in prod environmen")
-		db = config.InitProdAwsSession()
 		// Start the Lambda handler
 		lambda.Start(lambdaHandler)
 	}
@@ -58,9 +55,9 @@ func main() {
 
 func lambdaHandler(req events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 	switch req.HTTPMethod {
-	case "POST":
-		return handlers.CreateTaskHandler(db)
-	default:
-		return handlers.UnhandledMethod()
+		case "POST":
+			return handlers.CreateTaskHandler(context.Background(), req)
+		default:
+			return handlers.UnhandledMethod(context.Background(), req)
 	}
 }
